@@ -8,8 +8,9 @@ Build-Depends:
         dh-autoreconf,
         dh-systemd,
         help2man,
-        libcgmanager-dev,
         libfuse-dev,
+        libdbus-glib-1-dev,
+        libglib2.0-dev,
         pkg-config,
 Standards-Version: 3.9.5
 Homepage: https://linuxcontainers.org
