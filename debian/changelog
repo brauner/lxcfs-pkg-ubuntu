@@ -1,3 +1,9 @@
+lxcfs (0.10-0ubuntu2) wily; urgency=medium
+
+  * Allow systemd to escape its custom cgroup.  (LP: #1497420)
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 15 Oct 2015 08:56:13 -0500
+
 lxcfs (0.10-0ubuntu1) wily; urgency=medium
 
   * New upstream bugfix release:

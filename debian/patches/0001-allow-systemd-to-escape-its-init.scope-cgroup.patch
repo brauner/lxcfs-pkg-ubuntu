@@ -1,0 +1,47 @@
+From 04b5cbdc5c41efd308f8d64e80f9d423284656ee Mon Sep 17 00:00:00 2001
+From: Serge Hallyn <serge.hallyn@ubuntu.com>
+Date: Thu, 15 Oct 2015 08:29:56 -0500
+Subject: [PATCH 1/1] allow systemd to escape its init.scope cgroup
+
+Signed-off-by: Serge Hallyn <serge.hallyn@ubuntu.com>
+---
+ lxcfs.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/lxcfs.c b/lxcfs.c
+index e4fd77c..9ad70e3 100644
+--- a/lxcfs.c
++++ b/lxcfs.c
+@@ -277,6 +277,21 @@ static void stripnewline(char *x)
+ 		x[l-1] = '\0';
+ }
+ 
++#define INITSCOPE "/init.scope"
++static void prune_init_slice(char *cg)
++{
++	char *point;
++	point = cg + strlen(cg) - strlen(INITSCOPE);
++	if (point < cg)
++		 return;
++	if (strcmp(point, INITSCOPE) == 0) {
++		if (point == cg)
++			*(point+1) = '\0';
++		else
++			*point = '\0';
++	}
++}
++
+ /*
+  * If caller is in /a/b/c/d, he may only act on things under cg=/a/b/c/d.
+  * If caller is in /a, he may act on /a/b, but not on /b.
+@@ -311,6 +326,7 @@ static bool caller_is_in_ancestor(pid_t pid, const char *contrl, const char *cg,
+ 			continue;
+ 		c2++;
+ 		stripnewline(c2);
++		prune_init_slice(c2);
+ 		/*
+ 		 * callers pass in '/' for root cgroup, otherwise they pass
+ 		 * in a cgroup without leading '/'
+-- 
+2.5.0
+
