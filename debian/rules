@@ -14,3 +14,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 override_dh_autoreconf:
 	[ -e m4 ] || mkdir m4
 	dh_autoreconf
+
+clean:
+	dh_autoreconf_clean
+	dh_clean
