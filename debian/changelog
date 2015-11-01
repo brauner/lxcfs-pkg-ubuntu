@@ -1,3 +1,13 @@
+lxcfs (0.11-0ubuntu3) xenial; urgency=medium
+
+  * Add a versioned dependency against cgmanager to allow easier
+    backporting to trusty.
+  * Bump Debian-Standards (no change required).
+  * Add a lintian override for XS-Testsuite
+    (field still needed to build the source on 14.04).
+
+ -- Stéphane Graber <stgraber@ubuntu.com>  Sun, 01 Nov 2015 11:47:06 -0500
+
 lxcfs (0.11-0ubuntu2) xenial; urgency=medium
 
   * Set Delegate=yes in the systemd unit. Looks like that's needed to
