@@ -9,8 +9,6 @@ Build-Depends:
         dh-systemd,
         help2man,
         libfuse-dev,
-        libdbus-glib-1-dev,
-        libglib2.0-dev,
         pkg-config,
 Standards-Version: 3.9.6
 Homepage: https://linuxcontainers.org
@@ -20,7 +18,7 @@ XS-Testsuite: autopkgtest
 
 Package: lxcfs
 Architecture: any
-Depends: cgmanager (>= 0.39-2ubuntu2~), ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: FUSE based filesystem for LXC
  LXCFS provides a FUSE based filesystem to improve the LXC experience
  within the containers.
