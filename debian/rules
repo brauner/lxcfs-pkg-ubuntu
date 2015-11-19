@@ -11,6 +11,12 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 %:
 	dh $@  --with autotools_dev --with autoreconf --with systemd
 
+override_dh_installinit:
+	dh_installinit --no-restart-on-upgrade
+
+override_dh_systemd_start:
+	dh_systemd_start --no-restart-on-upgrade lxcfs.service
+
 override_dh_autoreconf:
 	[ -e m4 ] || mkdir m4
 	dh_autoreconf
