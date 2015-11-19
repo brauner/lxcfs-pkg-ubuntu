@@ -1,3 +1,10 @@
+lxcfs (0.12-0ubuntu2) xenial; urgency=medium
+
+  * On upgrade, ask admin to reboot rather than restarting (LP: #1518117)
+  * lxcfs.service - do not wait for cgmanager to start.
+
+ -- Serge Hallyn <serge.hallyn@ubuntu.com>  Thu, 19 Nov 2015 17:15:14 -0600
+
 lxcfs (0.12-0ubuntu1) xenial; urgency=medium
 
   * Merge new upstream release
