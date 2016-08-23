@@ -563,7 +563,7 @@ int cgfs_create(const char *controller, const char *cg, uid_t uid, gid_t gid)
 	return 0;
 }
 
-static bool recursive_rmdir(const char *dirname, int fd, const int cfd)
+static bool recursive_rmdir(const char *dirname, int fd)
 {
 	struct dirent *direntp;
 	DIR *dir;
@@ -580,13 +580,15 @@ static bool recursive_rmdir(const char *dirname, int fd, const int cfd)
 #if DEBUG
 		fprintf(stderr, "%s: failed to open %s: %s\n", __func__, dirname, strerror(errno));
 #endif
-		close(dupfd);
 		return false;
 	}
 
 	while ((direntp = readdir(dir))) {
 		struct stat mystat;
 		int rc;
+
+		if (!direntp)
+			break;
 
 		if (!strcmp(direntp->d_name, ".") ||
 		    !strcmp(direntp->d_name, ".."))
@@ -598,15 +600,15 @@ static bool recursive_rmdir(const char *dirname, int fd, const int cfd)
 			continue;
 		}
 
-		rc = fstatat(cfd, pathname, &mystat, AT_SYMLINK_NOFOLLOW);
-		if (rc < 0) {
+		ret = fstatat(fd, pathname, &mystat, AT_SYMLINK_NOFOLLOW);
+		if (ret) {
 #if DEBUG
 			fprintf(stderr, "%s: failed to stat %s: %s\n", __func__, pathname, strerror(errno));
 #endif
 			continue;
 		}
 		if (S_ISDIR(mystat.st_mode)) {
-			if (!recursive_rmdir(pathname, fd, cfd)) {
+			if (!recursive_rmdir(pathname, fd)) {
 #if DEBUG
 				fprintf(stderr, "Error removing %s\n", pathname);
 #endif
@@ -620,14 +622,13 @@ static bool recursive_rmdir(const char *dirname, int fd, const int cfd)
 		ret = false;
 	}
 
-	if (unlinkat(cfd, dirname, AT_REMOVEDIR) < 0) {
+	if (unlinkat(fd, dirname, AT_REMOVEDIR) < 0) {
 #if DEBUG
 		fprintf(stderr, "%s: failed to delete %s: %s\n", __func__, dirname, strerror(errno));
 #endif
 		ret = false;
 	}
-
-	close(dupfd);
+	close(fd);
 
 	return ret;
 }
@@ -637,7 +638,6 @@ bool cgfs_remove(const char *controller, const char *cg)
 	int fd, cfd;
 	size_t len;
 	char *dirnam, *tmpc;
-	bool bret;
 
 	tmpc = find_mounted_controller(controller, &cfd);
 	if (!tmpc)
@@ -654,9 +654,7 @@ bool cgfs_remove(const char *controller, const char *cg)
 	if (fd < 0)
 		return false;
 
-	bret = recursive_rmdir(dirnam, fd, cfd);
-	close(fd);
-	return bret;
+	return recursive_rmdir(dirnam, fd);
 }
 
 bool cgfs_chmod_file(const char *controller, const char *file, mode_t mode)

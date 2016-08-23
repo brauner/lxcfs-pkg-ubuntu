@@ -1,0 +1,101 @@
+bindings: close open fds on error
+
+Author: Christian Brauner <cbrauner@suse.de>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: https://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: 2016-08-23
+
+--- lxcfs-2.0.3.orig/bindings.c
++++ lxcfs-2.0.3/bindings.c
+@@ -563,7 +563,7 @@ int cgfs_create(const char *controller,
+ 	return 0;
+ }
+ 
+-static bool recursive_rmdir(const char *dirname, int fd)
++static bool recursive_rmdir(const char *dirname, int fd, const int cfd)
+ {
+ 	struct dirent *direntp;
+ 	DIR *dir;
+@@ -580,6 +580,7 @@ static bool recursive_rmdir(const char *
+ #if DEBUG
+ 		fprintf(stderr, "%s: failed to open %s: %s\n", __func__, dirname, strerror(errno));
+ #endif
++		close(dupfd);
+ 		return false;
+ 	}
+ 
+@@ -587,9 +588,6 @@ static bool recursive_rmdir(const char *
+ 		struct stat mystat;
+ 		int rc;
+ 
+-		if (!direntp)
+-			break;
+-
+ 		if (!strcmp(direntp->d_name, ".") ||
+ 		    !strcmp(direntp->d_name, ".."))
+ 			continue;
+@@ -600,15 +598,15 @@ static bool recursive_rmdir(const char *
+ 			continue;
+ 		}
+ 
+-		ret = fstatat(fd, pathname, &mystat, AT_SYMLINK_NOFOLLOW);
+-		if (ret) {
++		rc = fstatat(cfd, pathname, &mystat, AT_SYMLINK_NOFOLLOW);
++		if (rc < 0) {
+ #if DEBUG
+ 			fprintf(stderr, "%s: failed to stat %s: %s\n", __func__, pathname, strerror(errno));
+ #endif
+ 			continue;
+ 		}
+ 		if (S_ISDIR(mystat.st_mode)) {
+-			if (!recursive_rmdir(pathname, fd)) {
++			if (!recursive_rmdir(pathname, fd, cfd)) {
+ #if DEBUG
+ 				fprintf(stderr, "Error removing %s\n", pathname);
+ #endif
+@@ -622,13 +620,14 @@ static bool recursive_rmdir(const char *
+ 		ret = false;
+ 	}
+ 
+-	if (unlinkat(fd, dirname, AT_REMOVEDIR) < 0) {
++	if (unlinkat(cfd, dirname, AT_REMOVEDIR) < 0) {
+ #if DEBUG
+ 		fprintf(stderr, "%s: failed to delete %s: %s\n", __func__, dirname, strerror(errno));
+ #endif
+ 		ret = false;
+ 	}
+-	close(fd);
++
++	close(dupfd);
+ 
+ 	return ret;
+ }
+@@ -638,6 +637,7 @@ bool cgfs_remove(const char *controller,
+ 	int fd, cfd;
+ 	size_t len;
+ 	char *dirnam, *tmpc;
++	bool bret;
+ 
+ 	tmpc = find_mounted_controller(controller, &cfd);
+ 	if (!tmpc)
+@@ -654,7 +654,9 @@ bool cgfs_remove(const char *controller,
+ 	if (fd < 0)
+ 		return false;
+ 
+-	return recursive_rmdir(dirnam, fd);
++	bret = recursive_rmdir(dirnam, fd, cfd);
++	close(fd);
++	return bret;
+ }
+ 
+ bool cgfs_chmod_file(const char *controller, const char *file, mode_t mode)

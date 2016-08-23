@@ -1,0 +1,37 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+%:
+	dh $@  --with autotools_dev --with autoreconf --with systemd
+
+override_dh_install:
+	cp $(CURDIR)/debian/pam-cgfs.config \
+		$(CURDIR)/debian/libpam-cgfs/usr/share/pam-configs/cgfs
+	mkdir -p $(CURDIR)/debian/tmp/usr/lib/lxcfs
+	cp $(CURDIR)/debian/tmp/usr/lib/*/liblxcfs.so \
+		$(CURDIR)/debian/tmp/usr/lib/lxcfs
+	dh_install
+
+override_dh_installinit:
+	cp debian/tmp/etc/init/lxcfs.conf debian/lxcfs.upstart
+	cp debian/tmp/etc/rc.d/init.d/lxcfs debian/lxcfs.init
+	dh_installinit -p lxcfs --no-restart-on-upgrade
+
+override_dh_systemd_start:
+	dh_systemd_start -p lxcfs --no-restart-on-upgrade lxcfs.service
+
+override_dh_autoreconf:
+	[ -e m4 ] || mkdir m4
+	dh_autoreconf
+
+clean:
+	dh_autoreconf_clean
+	dh_clean

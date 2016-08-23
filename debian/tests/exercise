@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+echo 1 > /sys/fs/cgroup/cpuset/cgroup.clone_children
+chmod ugo+x tests/test_confinement.sh
+apt-get -y build-dep lxcfs
+apt-get -y install libattr1-dev
+debian/rules build
+make tests
+./tests/main.sh
