@@ -478,7 +478,7 @@ static int lxcfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, of
 		    filler(buf, "..", NULL, 0) != 0 ||
 		    filler(buf, "proc", NULL, 0) != 0 ||
 		    filler(buf, "cgroup", NULL, 0) != 0)
-			return -ENOENT;
+			return -ENOMEM;
 		return 0;
 	}
 	if (strncmp(path, "/cgroup", 7) == 0) {

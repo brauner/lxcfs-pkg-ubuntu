@@ -1,3 +1,9 @@
+lxcfs (2.0.3-0ubuntu4) yakkety; urgency=medium
+
+  * test upstream changes
+
+ -- Christian Brauner <cbrauner@suse.de>  Thu, 25 Aug 2016 15:02:46 +0200
+
 lxcfs (2.0.3-0ubuntu3) yakkety; urgency=medium
 
   * Cherry-pick upstream bugfix:
