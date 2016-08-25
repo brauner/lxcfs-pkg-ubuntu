@@ -48,6 +48,16 @@ return -1;
 extern int pivot_root(const char * new_root, const char * put_old);
 #endif
 
+#ifdef DEBUG
+#define lxcfs_debug(format, ...)                                               \
+	do {                                                                   \
+		fprintf(stderr, "%s: %d: %s: " format, __FILE__, __LINE__,     \
+			__func__, __VA_ARGS__);                                \
+	} while (false)
+#else
+#define lxcfs_debug(format, ...)
+#endif /* DEBUG */
+
 enum {
 	LXC_TYPE_CGDIR,
 	LXC_TYPE_CGFILE,
@@ -160,10 +170,10 @@ static bool initpid_still_valid(struct pidns_init_store *e, struct stat *nsfdsb)
 	snprintf(fnam, 100, "/proc/%d", e->initpid);
 	if (stat(fnam, &initsb) < 0)
 		return false;
-#if DEBUG
-	fprintf(stderr, "comparing ctime %ld %ld for pid %d\n",
-		e->ctime, initsb.st_ctime, e->initpid);
-#endif
+
+	lxcfs_debug("Comparing ctime %ld == %ld for pid %d.\n", e->ctime,
+		    initsb.st_ctime, e->initpid);
+
 	if (e->ctime != initsb.st_ctime)
 		return false;
 	return true;
@@ -175,9 +185,8 @@ static void remove_initpid(struct pidns_init_store *e)
 	struct pidns_init_store *tmp;
 	int h;
 
-#if DEBUG
-	fprintf(stderr, "remove_initpid: removing entry for %d\n", e->initpid);
-#endif
+	lxcfs_debug("Remove_initpid: removing entry for %d.\n", e->initpid);
+
 	h = HASH(e->ino);
 	if (pidns_hash_table[h] == e) {
 		pidns_hash_table[h] = e->next;
@@ -212,18 +221,18 @@ static void prune_initpid_store(void)
 	now = time(NULL);
 	if (now < last_prune + PURGE_SECS)
 		return;
-#if DEBUG
-	fprintf(stderr, "pruning\n");
-#endif
+
+	lxcfs_debug("%s\n", "Pruning.");
+
 	last_prune = now;
 	threshold = now - 2 * PURGE_SECS;
 
 	for (i = 0; i < PIDNS_HASH_SIZE; i++) {
 		for (prev = NULL, e = pidns_hash_table[i]; e; ) {
 			if (e->lastcheck < threshold) {
-#if DEBUG
-				fprintf(stderr, "Removing cached entry for %d\n", e->initpid);
-#endif
+
+				lxcfs_debug("Removing cached entry for %d.\n", e->initpid);
+
 				delme = e;
 				if (prev)
 					prev->next = e->next;
@@ -247,9 +256,8 @@ static void save_initpid(struct stat *sb, pid_t pid)
 	struct stat procsb;
 	int h;
 
-#if DEBUG
-	fprintf(stderr, "save_initpid: adding entry for %d\n", pid);
-#endif
+	lxcfs_debug("Save_initpid: adding entry for %d.\n", pid);
+
 	snprintf(fpath, 100, "/proc/%d", pid);
 	if (stat(fpath, &procsb) < 0)
 		return;
@@ -563,7 +571,7 @@ int cgfs_create(const char *controller, const char *cg, uid_t uid, gid_t gid)
 	return 0;
 }
 
-static bool recursive_rmdir(const char *dirname, int fd)
+static bool recursive_rmdir(const char *dirname, int fd, const int cfd)
 {
 	struct dirent *direntp;
 	DIR *dir;
@@ -577,18 +585,14 @@ static bool recursive_rmdir(const char *dirname, int fd)
 
 	dir = fdopendir(dupfd);
 	if (!dir) {
-#if DEBUG
-		fprintf(stderr, "%s: failed to open %s: %s\n", __func__, dirname, strerror(errno));
-#endif
+		lxcfs_debug("Failed to open %s: %s.\n", dirname, strerror(errno));
+		close(dupfd);
 		return false;
 	}
 
 	while ((direntp = readdir(dir))) {
 		struct stat mystat;
 		int rc;
-
-		if (!direntp)
-			break;
 
 		if (!strcmp(direntp->d_name, ".") ||
 		    !strcmp(direntp->d_name, ".."))
@@ -600,20 +604,14 @@ static bool recursive_rmdir(const char *dirname, int fd)
 			continue;
 		}
 
-		ret = fstatat(fd, pathname, &mystat, AT_SYMLINK_NOFOLLOW);
-		if (ret) {
-#if DEBUG
-			fprintf(stderr, "%s: failed to stat %s: %s\n", __func__, pathname, strerror(errno));
-#endif
+		rc = fstatat(cfd, pathname, &mystat, AT_SYMLINK_NOFOLLOW);
+		if (rc) {
+			lxcfs_debug("Failed to stat %s: %s.\n", pathname, strerror(errno));
 			continue;
 		}
-		if (S_ISDIR(mystat.st_mode)) {
-			if (!recursive_rmdir(pathname, fd)) {
-#if DEBUG
-				fprintf(stderr, "Error removing %s\n", pathname);
-#endif
-			}
-		}
+		if (S_ISDIR(mystat.st_mode))
+			if (!recursive_rmdir(pathname, fd, cfd))
+				lxcfs_debug("Error removing %s.\n", pathname);
 	}
 
 	ret = true;
@@ -622,13 +620,12 @@ static bool recursive_rmdir(const char *dirname, int fd)
 		ret = false;
 	}
 
-	if (unlinkat(fd, dirname, AT_REMOVEDIR) < 0) {
-#if DEBUG
-		fprintf(stderr, "%s: failed to delete %s: %s\n", __func__, dirname, strerror(errno));
-#endif
+	if (unlinkat(cfd, dirname, AT_REMOVEDIR) < 0) {
+		lxcfs_debug("Failed to delete %s: %s.\n", dirname, strerror(errno));
 		ret = false;
 	}
-	close(fd);
+
+	close(dupfd);
 
 	return ret;
 }
@@ -638,6 +635,7 @@ bool cgfs_remove(const char *controller, const char *cg)
 	int fd, cfd;
 	size_t len;
 	char *dirnam, *tmpc;
+	bool bret;
 
 	tmpc = find_mounted_controller(controller, &cfd);
 	if (!tmpc)
@@ -654,7 +652,9 @@ bool cgfs_remove(const char *controller, const char *cg)
 	if (fd < 0)
 		return false;
 
-	return recursive_rmdir(dirnam, fd);
+	bret = recursive_rmdir(dirnam, fd, cfd);
+	close(fd);
+	return bret;
 }
 
 bool cgfs_chmod_file(const char *controller, const char *file, mode_t mode)
@@ -1927,7 +1927,7 @@ int cg_access(const char *path, int mode)
 	struct fuse_context *fc = fuse_get_context();
 
 	if (strcmp(path, "/cgroup") == 0) {
-		if (access(path, W_OK) == 0)
+		if ((mode & W_OK) == 0)
 			return -EACCES;
 		return 0;
 	}
@@ -3191,8 +3191,10 @@ static int proc_meminfo_read(char *buf, size_t size, off_t offset,
 			snprintf(lbuf, 100, "SwapTotal:      %8lu kB\n", memswlimit - memlimit);
 			printme = lbuf;
 		} else if (startswith(line, "SwapFree:") && memswlimit > 0 && memswusage > 0) {
-			snprintf(lbuf, 100, "SwapFree:       %8lu kB\n",
-				(memswlimit - memlimit) - (memswusage - memusage));
+			unsigned long swaptotal = memswlimit - memlimit,
+					swapusage = memswusage - memusage,
+					swapfree = swapusage < swaptotal ? swaptotal - swapusage : 0;
+			snprintf(lbuf, 100, "SwapFree:       %8lu kB\n", swapfree);
 			printme = lbuf;
 		} else if (startswith(line, "Slab:")) {
 			snprintf(lbuf, 100, "Slab:        %8lu kB\n", 0UL);
@@ -3537,6 +3539,8 @@ static int proc_stat_read(char *buf, size_t size, off_t offset,
 		char cpu_char[10]; /* That's a lot of cores */
 		char *c;
 
+		if (strlen(line) == 0)
+			continue;
 		if (sscanf(line, "cpu%9[^ ]", cpu_char) != 1) {
 			/* not a ^cpuN line containing a number N, just print it */
 			l = snprintf(cache, cache_size, "%s", line);
