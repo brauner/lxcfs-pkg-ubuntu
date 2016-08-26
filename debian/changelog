@@ -1,3 +1,9 @@
+lxcfs (2.0.3-0ubuntu5) yakkety; urgency=medium
+
+  * test upstream changes
+
+ -- Christian Brauner <chb@conventiont>  Fri, 26 Aug 2016 15:21:50 +0200
+
 lxcfs (2.0.3-0ubuntu4) yakkety; urgency=medium
 
   * test upstream changes
