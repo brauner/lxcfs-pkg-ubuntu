@@ -2,12 +2,16 @@
 #define BASEDIR RUNTIME_PATH "/lxcfs/controllers"
 #define ROOTDIR RUNTIME_PATH "/lxcfs/root"
 
-#ifdef DEBUG
-#define lxcfs_debug(format, ...)                                               \
+#define lxcfs_debug_stream(stream, format, ...)                                \
 	do {                                                                   \
 		fprintf(stderr, "%s: %d: %s: " format, __FILE__, __LINE__,     \
 			__func__, __VA_ARGS__);                                \
 	} while (false)
+
+#define lxcfs_error(format, ...) lxcfs_debug_stream(stderr, format, __VA_ARGS__)
+
+#ifdef DEBUG
+#define lxcfs_debug(format, ...) lxcfs_error(format, __VA_ARGS__)
 #else
 #define lxcfs_debug(format, ...)
 #endif /* DEBUG */
