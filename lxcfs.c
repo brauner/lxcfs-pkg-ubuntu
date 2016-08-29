@@ -74,17 +74,21 @@ static volatile sig_atomic_t need_reload;
  * lock and when we know the user_count was 0 */
 static void do_reload(void)
 {
-	if (dlopen_handle)
+	if (dlopen_handle) {
+		lxcfs_debug("%s\n", "Closing liblxcfs.so handle.");
 		dlclose(dlopen_handle);
+	}
 
 	/* First try loading using ld.so */
 	dlopen_handle = dlopen("liblxcfs.so", RTLD_LAZY);
-	if (dlopen_handle)
+	if (dlopen_handle) {
+		lxcfs_debug("%s\n", "Successfully called dlopen() on liblxcfs.so.");
 		goto good;
+	}
 
 	dlopen_handle = dlopen("/usr/lib/lxcfs/liblxcfs.so", RTLD_LAZY);
 	if (!dlopen_handle) {
-		fprintf(stderr, "Failed to open liblxcfs: %s.\n", dlerror());
+		fprintf(stderr, "Failed to open liblxcfs.so: %s.\n", dlerror());
 		_exit(1);
 	}
 

@@ -48,16 +48,6 @@ return -1;
 extern int pivot_root(const char * new_root, const char * put_old);
 #endif
 
-#ifdef DEBUG
-#define lxcfs_debug(format, ...)                                               \
-	do {                                                                   \
-		fprintf(stderr, "%s: %d: %s: " format, __FILE__, __LINE__,     \
-			__func__, __VA_ARGS__);                                \
-	} while (false)
-#else
-#define lxcfs_debug(format, ...)
-#endif /* DEBUG */
-
 enum {
 	LXC_TYPE_CGDIR,
 	LXC_TYPE_CGFILE,
@@ -4400,23 +4390,31 @@ static void __attribute__((constructor)) collect_and_mount_subsystems(void)
 
 	/* Preserve initial namespace. */
 	init_ns = preserve_ns(getpid());
-	if (init_ns < 0)
+	if (init_ns < 0) {
+		lxcfs_debug("%s\n", "Failed to preserve initial mount namespace.");
 		goto out;
+	}
 
 	fd_hierarchies = malloc(sizeof(int *) * num_hierarchies);
-	if (!fd_hierarchies)
+	if (!fd_hierarchies) {
+		lxcfs_debug("%s\n", strerror(errno));
 		goto out;
+	}
 
 	for (i = 0; i < num_hierarchies; i++)
 		fd_hierarchies[i] = -1;
 
 	/* This function calls unshare(CLONE_NEWNS) our initial mount namespace
 	 * to privately mount lxcfs cgroups. */
-	if (!cgfs_setup_controllers())
+	if (!cgfs_setup_controllers()) {
+		lxcfs_debug("%s\n", "Failed to setup private cgroup mounts for lxcfs.");
 		goto out;
+	}
 
-	if (setns(init_ns, 0) < 0)
+	if (setns(init_ns, 0) < 0) {
+		lxcfs_debug("%s\n", "Failed to switch back to initial mount namespace: %s.\n", strerror(errno));
 		goto out;
+	}
 
 	print_subsystems();
 
@@ -4430,6 +4428,8 @@ out:
 static void __attribute__((destructor)) free_subsystems(void)
 {
 	int i;
+
+	lxcfs_debug("%s\n", "Running destructor for liblxcfs.");
 
 	for (i = 0; i < num_hierarchies; i++) {
 		if (hierarchies[i])

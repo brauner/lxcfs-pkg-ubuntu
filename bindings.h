@@ -2,6 +2,16 @@
 #define BASEDIR RUNTIME_PATH "/lxcfs/controllers"
 #define ROOTDIR RUNTIME_PATH "/lxcfs/root"
 
+#ifdef DEBUG
+#define lxcfs_debug(format, ...)                                               \
+	do {                                                                   \
+		fprintf(stderr, "%s: %d: %s: " format, __FILE__, __LINE__,     \
+			__func__, __VA_ARGS__);                                \
+	} while (false)
+#else
+#define lxcfs_debug(format, ...)
+#endif /* DEBUG */
+
 extern int cg_write(const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi);
 extern int cg_mkdir(const char *path, mode_t mode);
