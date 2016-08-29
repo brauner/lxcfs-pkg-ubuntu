@@ -1,3 +1,9 @@
+lxcfs (2.0.3-0ubuntu9) yakkety; urgency=medium
+
+  * make liblxcfs a libtool module
+
+ -- Christian Brauner <chb@conventiont>  Mon, 29 Aug 2016 13:15:53 +0200
+
 lxcfs (2.0.3-0ubuntu8) yakkety; urgency=medium
 
   * make liblxcfs a libtool module

@@ -4391,13 +4391,13 @@ static void __attribute__((constructor)) collect_and_mount_subsystems(void)
 	/* Preserve initial namespace. */
 	init_ns = preserve_ns(getpid());
 	if (init_ns < 0) {
-		lxcfs_debug("%s\n", "Failed to preserve initial mount namespace.");
+		fprintf(stderr, "%s\n", "Failed to preserve initial mount namespace.");
 		goto out;
 	}
 
 	fd_hierarchies = malloc(sizeof(int *) * num_hierarchies);
 	if (!fd_hierarchies) {
-		lxcfs_debug("%s\n", strerror(errno));
+		fprintf(stderr, "%s\n", strerror(errno));
 		goto out;
 	}
 
@@ -4407,12 +4407,12 @@ static void __attribute__((constructor)) collect_and_mount_subsystems(void)
 	/* This function calls unshare(CLONE_NEWNS) our initial mount namespace
 	 * to privately mount lxcfs cgroups. */
 	if (!cgfs_setup_controllers()) {
-		lxcfs_debug("%s\n", "Failed to setup private cgroup mounts for lxcfs.");
+		fprintf(stderr, "%s\n", "Failed to setup private cgroup mounts for lxcfs.");
 		goto out;
 	}
 
 	if (setns(init_ns, 0) < 0) {
-		lxcfs_debug("%s\n", "Failed to switch back to initial mount namespace: %s.\n", strerror(errno));
+		fprintf(stderr, "Failed to switch back to initial mount namespace: %s.\n", strerror(errno));
 		goto out;
 	}
 
